@@ -11,3 +11,4 @@ images/
 baselines/
 **/*.bak
 *.png
+checkpoints/

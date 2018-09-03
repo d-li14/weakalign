@@ -28,7 +28,7 @@ from model.cnn_geometric_model import featureL2Norm
 from util.dataloader import default_collate
 from util.eval_util import pck_metric, area_metrics, flow_metrics, compute_metric
 from options.options import ArgumentParser
-
+from tensorboardX import SummaryWriter
 
 """
 
@@ -66,14 +66,15 @@ if args.eval_dataset=='pf-pascal' and not exists(args.eval_dataset_path):
 # load pre-trained model
 if args.model!='':
     checkpoint = torch.load(args.model, map_location=lambda storage, loc: storage)
-    checkpoint['state_dict'] = OrderedDict([(k.replace('vgg', 'model'), v) for k, v in checkpoint['state_dict'].items()])
+    model.load_state_dict(checkpoint['state_dict'])
+    #checkpoint['state_dict'] = OrderedDict([(k.replace('vgg', 'model'), v) for k, v in checkpoint['state_dict'].items()])
         
-    for name, param in model.FeatureExtraction.state_dict().items():
-        model.FeatureExtraction.state_dict()[name].copy_(checkpoint['state_dict']['FeatureExtraction.' + name])    
-    for name, param in model.FeatureRegression.state_dict().items():
-        model.FeatureRegression.state_dict()[name].copy_(checkpoint['state_dict']['FeatureRegression.' + name])
-    for name, param in model.FeatureRegression2.state_dict().items():
-        model.FeatureRegression2.state_dict()[name].copy_(checkpoint['state_dict']['FeatureRegression2.' + name])
+    #for name, param in model.FeatureExtraction.state_dict().items():
+    #    model.FeatureExtraction.state_dict()[name].copy_(checkpoint['state_dict']['FeatureExtraction.' + name])    
+    #for name, param in model.FeatureRegression.state_dict().items():
+    #    model.FeatureRegression.state_dict()[name].copy_(checkpoint['state_dict']['FeatureRegression.' + name])
+    #for name, param in model.FeatureRegression2.state_dict().items():
+    #    model.FeatureRegression2.state_dict()[name].copy_(checkpoint['state_dict']['FeatureRegression2.' + name])
         
 if args.model_aff!='':
     checkpoint_aff = torch.load(args.model_aff, map_location=lambda storage, loc: storage)
@@ -195,7 +196,7 @@ def process_epoch(mode,epoch,model,loss_fn,optimizer,dataloader,batch_preprocess
             optimizer.zero_grad()
         tnf_batch = batch_preprocessing_fn(batch)
         loss = loss_fn(tnf_batch)
-        loss_np = loss.data.cpu().numpy()[0]
+        loss_np = loss.data.cpu().numpy()
         epoch_loss += loss_np
         if mode=='train':
             loss.backward()
@@ -247,6 +248,8 @@ optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr
 
 print('Starting training...')
 
+writer = SummaryWriter(os.path.join(args.result_model_dir, 'logs'))
+
 for epoch in range(1, args.num_epochs+1):
     if args.update_bn_buffers==False:
         model.eval()
@@ -262,6 +265,8 @@ for epoch in range(1, args.num_epochs+1):
         test_loss[epoch-1] = -eval_value
     else:
         test_loss[epoch-1] = eval_value
+
+    writer.add_scalars('loss', {'train loss': train_loss[epoch-1], 'test loss': test_loss[epoch-1]}, epoch)
         
     # remember best loss
     is_best = test_loss[epoch-1] < best_test_loss

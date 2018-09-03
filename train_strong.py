@@ -19,6 +19,7 @@ import numpy as np
 import numpy.random
 from collections import OrderedDict
 from options.options import ArgumentParser
+from tensorboardX import SummaryWriter
 
 """
 
@@ -67,12 +68,13 @@ model = CNNGeometric(use_cuda=use_cuda,
 # Load pretrained model
 if args.model!='':
     checkpoint = torch.load(args.model, map_location=lambda storage, loc: storage)
-    checkpoint['state_dict'] = OrderedDict([(k.replace('vgg', 'model'), v) for k, v in checkpoint['state_dict'].items()])
+    model.load_state_dict(checkpoint['state_dict'])
+    #checkpoint['state_dict'] = OrderedDict([(k.replace('vgg', 'model'), v) for k, v in checkpoint['state_dict'].items()])
         
-    for name, param in model.FeatureExtraction.state_dict().items():
-        model.FeatureExtraction.state_dict()[name].copy_(checkpoint['state_dict']['FeatureExtraction.' + name])    
-    for name, param in model.FeatureRegression.state_dict().items():
-        model.FeatureRegression.state_dict()[name].copy_(checkpoint['state_dict']['FeatureRegression.' + name])
+    #for name, param in model.FeatureExtraction.state_dict().items():
+    #    model.FeatureExtraction.state_dict()[name].copy_(checkpoint['state_dict']['FeatureExtraction.' + name])    
+    #for name, param in model.FeatureRegression.state_dict().items():
+    #    model.FeatureRegression.state_dict()[name].copy_(checkpoint['state_dict']['FeatureRegression.' + name])
         
 
 if args.use_mse_loss:
@@ -137,7 +139,7 @@ def process_epoch(mode,epoch,model,loss_fn,optimizer,dataloader,batch_preprocess
         tnf_batch = batch_preprocessing_fn(batch)
         theta = model(tnf_batch)
         loss = loss_fn(theta,tnf_batch['theta_GT'])
-        loss_np = loss.data.cpu().numpy()[0]
+        loss_np = loss.data.cpu().numpy()
         epoch_loss += loss_np
         if mode=='train':
             loss.backward()
@@ -160,11 +162,18 @@ print('Starting training...')
 
 model.FeatureExtraction.eval()
 
+writer = SummaryWriter(os.path.join(args.result_model_dir, 'logs'))
+
 for epoch in range(1, args.num_epochs+1):
     model.FeatureRegression.train()
     train_loss[epoch-1] = process_epoch('train',epoch,model,loss,optimizer,dataloader,pair_generation_tnf,log_interval=100)
     model.FeatureRegression.eval()
     test_loss[epoch-1] = process_epoch('test',epoch,model,loss,optimizer,dataloader_test,pair_generation_tnf,log_interval=100)
+
+    if args.lr == 0.001:
+        writer.add_scalars('loss', {'train loss': train_loss[epoch-1], 'test loss': test_loss[epoch-1]}, epoch)
+    elif args.lr == 0.0002:
+        writer.add_scalars('loss', {'train loss': train_loss[epoch-1], 'test loss': test_loss[epoch-1]}, epoch + 50)
     
     # remember best loss
     is_best = test_loss[epoch-1] < best_test_loss
