@@ -58,6 +58,33 @@ class FeatureExtraction(torch.nn.Module):
             self.model = models.resnet101(pretrained=True)
             # keep feature extraction network up to pool4 (last layer - 7)
             self.model = nn.Sequential(*list(self.model.children())[:-3])
+        if feature_extraction_cnn == 'resnet152':
+            self.model = models.resnet152(pretrained=True)
+            resnet_feature_layers = ['conv1',
+                                     'bn1',
+                                     'relu',
+                                     'maxpool',
+                                     'layer1',
+                                     'layer2',
+                                     'layer3',
+                                     'layer4']
+            if last_layer=='':
+                last_layer = 'layer3'
+            last_layer_idx = resnet_feature_layers.index(last_layer)
+            resnet_module_list = [self.model.conv1,
+                                  self.model.bn1,
+                                  self.model.relu,
+                                  self.model.maxpool,
+                                  self.model.layer1,
+                                  self.model.layer2,
+                                  self.model.layer3,
+                                  self.model.layer4]
+            
+            self.model = nn.Sequential(*resnet_module_list[:last_layer_idx+1])
+        if feature_extraction_cnn == 'resnet152_v2':
+            self.model = models.resnet152(pretrained=True)
+            # keep feature extraction network up to pool4 (last layer - 7)
+            self.model = nn.Sequential(*list(self.model.children())[:-3])
         if feature_extraction_cnn == 'densenet201':
             self.model = models.densenet201(pretrained=True)
             # keep feature extraction network up to denseblock3
