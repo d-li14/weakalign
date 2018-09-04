@@ -233,7 +233,8 @@ eval_idx = np.flatnonzero(eval_flag)
 
 model.eval()
 
-stats=compute_metric(metric,model,dataset_eval,dataloader_eval,batch_tnf,8,two_stage,do_aff,do_tps,args)
+with torch.no_grad():
+    stats=compute_metric(metric,model,dataset_eval,dataloader_eval,batch_tnf,8,two_stage,do_aff,do_tps,args)
 eval_value=np.mean(stats['aff_tps'][metric][eval_idx])
 
 print(eval_value)
@@ -257,7 +258,8 @@ for epoch in range(1, args.num_epochs+1):
         model.train()
     train_loss[epoch-1] = process_epoch('train',epoch,model,loss_fun,optimizer,dataloader,batch_tnf,log_interval=1)
     model.eval()
-    stats=compute_metric(metric,model,dataset_eval,dataloader_eval,batch_tnf,8,two_stage,do_aff,do_tps,args)
+    with torch.no_grad():
+        stats=compute_metric(metric,model,dataset_eval,dataloader_eval,batch_tnf,8,two_stage,do_aff,do_tps,args)
     eval_value=np.mean(stats['aff_tps'][metric][eval_idx])
     print(eval_value)
     
