@@ -79,7 +79,7 @@ if not two_stage and do_aff:
                          **arg_groups['model'])
     
 if not two_stage and do_tps:
-    model_tps = CNNGeometric(use_cuda=use_cuda,
+    model = CNNGeometric(use_cuda=use_cuda,
                              output_dim=18,
                              **arg_groups['model'])
 
