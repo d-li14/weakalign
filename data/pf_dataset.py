@@ -29,8 +29,8 @@ class PFDataset(Dataset):
         self.pairs = pd.read_csv(csv_file)
         self.img_A_names = self.pairs.iloc[:,0]
         self.img_B_names = self.pairs.iloc[:,1]
-        self.point_A_coords = self.pairs.iloc[:, 2:22].as_matrix().astype('float')
-        self.point_B_coords = self.pairs.iloc[:, 22:].as_matrix().astype('float')
+        self.point_A_coords = self.pairs.iloc[:, 2:22].values.astype('float')
+        self.point_B_coords = self.pairs.iloc[:, 22:].values.astype('float')
         self.dataset_path = dataset_path         
         self.transform = transform
         # no cuda as dataset is called from CPU threads in dataloader and produces confilct
@@ -108,7 +108,7 @@ class PFPascalDataset(Dataset):
         self.category_names=['aeroplane','bicycle','bird','boat','bottle','bus','car','cat','chair','cow','diningtable','dog','horse','motorbike','person','pottedplant','sheep','sofa','train','tvmonitor']
         self.out_h, self.out_w = output_size
         self.pairs = pd.read_csv(csv_file)
-        self.category = self.pairs.iloc[:,2].as_matrix().astype('float')
+        self.category = self.pairs.iloc[:,2].values.astype('float')
         if category is not None:
             cat_idx = np.nonzero(self.category==category)[0]
             self.category=self.category[cat_idx]

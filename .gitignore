@@ -12,3 +12,4 @@ baselines/
 **/*.bak
 *.png
 checkpoints/
+scripts/
