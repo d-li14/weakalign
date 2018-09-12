@@ -133,34 +133,95 @@ class FeatureCorrelation(torch.nn.Module):
         
         if self.normalization:
             correlation_tensor = featureL2Norm(self.ReLU(correlation_tensor))
+            # softmax w/o setting negative correlation to zero
+            # correlation_tensor = Softmax1D(correlation_tensor, dim=1)
             
         return correlation_tensor
+
+
+def conv3x3(in_planes, out_planes, stride=1):
+    """3x3 convolution with padding"""
+    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
+                     padding=1, bias=False)
+
+
+class BasicBlock(nn.Module):
+    expansion = 1
+
+    def __init__(self, inplanes, planes, stride=1, downsample=None):
+        super(BasicBlock, self).__init__()
+        self.conv1 = conv3x3(inplanes, planes, stride)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = conv3x3(planes, planes)
+        self.bn2 = nn.BatchNorm2d(planes)
+        self.downsample = downsample
+        self.stride = stride
+
+    def forward(self, x):
+        residual = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        out += residual
+        out = self.relu(out)
+
+        return out
 
 
 class FeatureRegression(nn.Module):
     def __init__(self, output_dim=6, use_cuda=True, batch_normalization=True, kernel_sizes=[7,5], channels=[128,64] ,feature_size=15):
         super(FeatureRegression, self).__init__()
-        num_layers = len(kernel_sizes)
-        nn_modules = list()
-        for i in range(num_layers):
-            if i==0:
-                ch_in = feature_size*feature_size
-            else:
-                ch_in = channels[i-1]
-            ch_out = channels[i]
-            k_size = kernel_sizes[i]
-            nn_modules.append(nn.Conv2d(ch_in, ch_out, kernel_size=k_size, padding=0))
-            if batch_normalization:
-                nn_modules.append(nn.BatchNorm2d(ch_out))
-            nn_modules.append(nn.ReLU(inplace=True))
-        self.conv = nn.Sequential(*nn_modules)        
-        self.linear = nn.Linear(ch_out * k_size * k_size, output_dim)
+        #num_layers = len(kernel_sizes)
+        #nn_modules = list()
+        #for i in range(num_layers):
+        #    if i==0:
+        #        ch_in = feature_size*feature_size
+        #    else:
+        #        ch_in = channels[i-1]
+        #    ch_out = channels[i]
+        #    k_size = kernel_sizes[i]
+        #    nn_modules.append(nn.Conv2d(ch_in, ch_out, kernel_size=k_size, padding=0))
+        #    if batch_normalization:
+        #        nn_modules.append(nn.BatchNorm2d(ch_out))
+        #    nn_modules.append(nn.ReLU(inplace=True))
+        #self.conv = nn.Sequential(*nn_modules)        
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(feature_size*feature_size, channels[0], kernel_size=kernel_sizes[0]),
+            nn.BatchNorm2d(channels[0]),
+            nn.ReLU(inplace=True)
+        )
+        self.layer = nn.Sequential(
+            BasicBlock(channels[0], channels[0]),
+            BasicBlock(channels[0], channels[0]),
+            BasicBlock(channels[0], channels[0])
+        )
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(channels[0], channels[1], kernel_size=kernel_sizes[1]),
+            nn.BatchNorm2d(channels[1]),
+            nn.ReLU(inplace=True)
+        )
+        self.linear = nn.Linear(channels[1] * kernel_sizes[1] * kernel_sizes[1], output_dim)
         if use_cuda:
-            self.conv.cuda()
+            #self.conv.cuda()
+            self.conv1.cuda()
+            self.layer.cuda()
+            self.conv2.cuda()
             self.linear.cuda()
 
     def forward(self, x):
-        x = self.conv(x)
+        #x = self.conv(x)
+        x = self.conv1(x)
+        x = self.layer(x)
+        x = self.conv2(x)
         x = x.view(x.size(0), -1)
         x = self.linear(x)
         return x
